@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  codex:
+    build:
+      context: .
+      args:
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+        USER_NAME: dev
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ${CODEX_AUTH_FILE}:/home/dev/.codex/auth.json:ro
+    environment:
+      CODEX_INSTALL_CMD: ${CODEX_INSTALL_CMD:-}
+      CODEX_AUTH_TOKEN: ${CODEX_AUTH_TOKEN:-}
+    stdin_open: true
+    tty: true
