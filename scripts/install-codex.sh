@@ -15,4 +15,10 @@ EOF
   exit 1
 fi
 
+AUTH_FILE="${HOME}/.codex/auth.json"
+if [[ -f "${AUTH_FILE}" && -w "${AUTH_FILE}" ]]; then
+  chmod 0400 "${AUTH_FILE}"
+  echo "[install-codex] Locked ${AUTH_FILE} (chmod 0400)."
+fi
+
 echo "[install-codex] Done."
