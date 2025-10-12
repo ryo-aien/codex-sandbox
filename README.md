@@ -2,6 +2,8 @@
 
 macOS 上でプロジェクトディレクトリを編集しながら、コンテナ内で Codex を動かすための最小構成です。
 
+![ホスト構成図](image/ホスト構成図.png)
+
 ## 必要条件
 - Docker Desktop（または Docker Engine + docker compose プラグイン）
 - Cursor / VS Code（任意。いつも通りフォルダを開いてターミナルを使えます）
