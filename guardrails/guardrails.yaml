@@ -1,0 +1,128 @@
+# -------------------------------------------------------------------
+# Codex guardrail template
+#
+# Copy this file to `guardrails.yaml` (or another name of your choice)
+# and configure your Codex CLI instance to load it (for example via a
+# guardrails flag or environment variable, depending on the version you
+# are using).
+#
+# The schema below is intentionally verbose and well-commented to make
+# it easy to adapt. Remove the comments once you finalise your policy.
+# -------------------------------------------------------------------
+
+version: 1
+
+metadata:
+  name: default-guardrails
+  description: >
+    Baseline guardrails that block destructive commands, protect the
+    repository history, and require confirmation for high-impact actions.
+
+# Default behaviour when no rule matches.
+defaults:
+  decision: allow
+  blocked_message: >
+    Guardrail ${rule_id} blocked: ${command}
+
+rules:
+  # -------- Shell command guardrails --------
+  - id: block-destructive-shell
+    description: Block obviously destructive shell commands.
+    when:
+      tool: shell
+      command:
+        any:
+          - regex: '(^|;)\\s*rm\\s+-rf\\s+(/|\\.|~)'
+          - regex: '(^|;)\\s*(?:rm|del)\\s+.*\\b--no-preserve-root'
+          - regex: '(^|;)\\s*(?:mkfs|fdisk|parted)\\b'
+          - regex: '(^|;)\\s*(?:dd|cat)\\s+.*\\s+of=/dev/sd'
+          - regex: '(^|;)\\s*(?:shutdown|reboot|halt)\\b'
+    then:
+      action: block
+      message: >
+        Dangerous shell command blocked for safety. Consult a maintainer.
+
+  - id: block-host-wide-permissions
+    description: Prevent chmod/chown from touching the whole filesystem.
+    when:
+      tool: shell
+      command:
+        any:
+          - regex: '(^|;)\\s*chmod\\s+(?:[0-7]{3,4}|a[+-=])\\S*\\s+/(?:\\s|$)'
+          - regex: '(^|;)\\s*chown\\s+\\S+\\s+/(?:\\s|$)'
+    then:
+      action: block
+      message: >
+        Modifying permissions at the filesystem root is not allowed.
+
+  - id: require-confirmation-package-manager
+    description: Ask before running long lived package manager commands.
+    when:
+      tool: shell
+      command:
+        any:
+          - regex: '(^|;)\\s*apt(-get)?\\s+(?:upgrade|dist-upgrade|full-upgrade)\\b'
+          - regex: '(^|;)\\s*apt(-get)?\\s+install\\b'
+          - regex: '(^|;)\\s*npm\\s+(?:install|update|ci)\\b'
+          - regex: '(^|;)\\s*brew\\s+(?:install|upgrade|uninstall)\\b'
+    then:
+      action: require_confirmation
+      prompt: >
+        This command can change system dependencies or take a long time.
+        Continue? (yes/no)
+
+  # -------- Git safety guardrails --------
+  - id: block-history-rewrite
+    description: Stop force-push and destructive local git operations.
+    when:
+      tool: shell
+      command:
+        any:
+          - regex: 'git\\s+push\\s+.*--force'
+          - regex: 'git\\s+push\\s+.*-f\\b'
+          - regex: 'git\\s+reset\\s+--hard'
+          - regex: 'git\\s+clean\\s+-fd'
+          - regex: 'git\\s+rebase\\s+--onto\\s+.*HEAD~'
+    then:
+      action: block
+      message: >
+        Git history rewriting commands are disallowed without human review.
+
+  # -------- File editing guardrails --------
+  - id: block-apply-patch-outside-workspace
+    description: Restrict apply_patch edits to the mounted workspace.
+    when:
+      tool: apply_patch
+      target_path:
+        not_starts_with: /workspace
+    then:
+      action: block
+      message: >
+        apply_patch is limited to files inside /workspace.
+
+  - id: block-binary-edits
+    description: Prevent apply_patch from modifying binary files.
+    when:
+      tool: apply_patch
+      target_path:
+        matches:
+          - regex: '\\.(?:png|jpg|jpeg|gif|pdf|zip|tar|gz|tgz|xz|7z|exe|dll)$'
+    then:
+      action: block
+      message: >
+        Binary files must be updated manually by a human.
+
+# Optional allow-list for common safe commands.
+allowlist:
+  - for: shell
+    commands:
+      - regex: '^ls(\\s|$)'
+      - regex: '^pwd(\\s|$)'
+      - regex: '^cat\\b'
+      - regex: '^grep\\b'
+      - regex: '^rg\\b'
+      - regex: '^git\\s+status'
+
+# Uncomment to export variables or macros usable in the messages above.
+# variables:
+#   workspace_root: /workspace
