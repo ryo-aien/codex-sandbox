@@ -39,3 +39,23 @@ Codex CLI のバージョンによって、ガードレールの読み込み方�
 - テンプレートを更新した場合は、変更履歴を追いやすくするために Pull Request またはチャットでチームに共有します。
 - 定期的にログや実行履歴を確認し、誤検知や未検知のパターンが無いか見直してください。
 
+# Agent Policy: Plan → Approve → Execute
+
+## Execution Policy
+- DEFAULT_AUTO_APPROVE: true   <!-- ここで自動承認の既定を宣言 -->
+- Plan は JSON のみを出力し、実行はしない。
+- Plan JSON は必ず `meta.auto_approve` を含め、ここには `DEFAULT_AUTO_APPROVE` を反映する。
+- `meta.auto_approve` が true でも、**サーバ側の Guardrail に違反する手順は実行不可**。
+- 破壊的操作・ネットワーク操作は必ず `risk:"high"` と分類する。
+
+## Plan JSON 形式
+```json
+{
+  "plan_id": "xxxx",
+  "ttl_minutes": 30,
+  "working_dir": "/home/agent/work",
+  "meta": { "auto_approve": true },
+  "steps": [
+    { "id":"1","cmd":"ls -la","cwd":"/home/agent/work","rationale":"確認","risk":"low" }
+  ]
+}

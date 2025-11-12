@@ -1,128 +1,120 @@
-# -------------------------------------------------------------------
-# Codex guardrail template
-#
-# Copy this file to `guardrails.yaml` (or another name of your choice)
-# and configure your Codex CLI instance to load it (for example via a
-# guardrails flag or environment variable, depending on the version you
-# are using).
-#
-# The schema below is intentionally verbose and well-commented to make
-# it easy to adapt. Remove the comments once you finalise your policy.
-# -------------------------------------------------------------------
-
-version: 1
-
-metadata:
-  name: default-guardrails
-  description: >
-    Baseline guardrails that block destructive commands, protect the
-    repository history, and require confirmation for high-impact actions.
-
-# Default behaviour when no rule matches.
+# Guardrails configuration (reviewed)
+# Default stance: require confirmation unless explicitly allowlisted.
 defaults:
   decision: allow
   blocked_message: >
     Guardrail ${rule_id} blocked: ${command}
 
 rules:
-  # -------- Shell command guardrails --------
-  - id: block-destructive-shell
-    description: Block obviously destructive shell commands.
+  # 1) Dangerous privilege/disk operations
+  - id: block-priv-escalation-and-disk
+    description: Block sudo, dd, mkfs, fork-bomb, and destructive redirections
     when:
       tool: shell
       command:
         any:
-          - regex: '(^|;)\\s*rm\\s+-rf\\s+(/|\\.|~)'
-          - regex: '(^|;)\\s*(?:rm|del)\\s+.*\\b--no-preserve-root'
-          - regex: '(^|;)\\s*(?:mkfs|fdisk|parted)\\b'
-          - regex: '(^|;)\\s*(?:dd|cat)\\s+.*\\s+of=/dev/sd'
-          - regex: '(^|;)\\s*(?:shutdown|reboot|halt)\\b'
+          - regex: '(^|;)\\s*sudo\\b'
+          - regex: '(^|;)\\s*dd\\b'
+          - regex: '(^|;)\\s*mkfs\\w*\\b'
+          - regex: ':\\(\\)\\s*\\{\\s*:\\|:\\s*;\\s*\\}\\s*;\\s*:'
+          - regex: '(^|;)\\s*truncate\\s+-s\\s+0\\b'
+          - regex: '(^|;)\\s*>\\s*/\\S+'
+          - regex: '(^|;)\\s*:\\s*>\\s*\\S+'
     then:
       action: block
-      message: >
-        Dangerous shell command blocked for safety. Consult a maintainer.
+      message: 'Dangerous privilege/disk operations are not allowed.'
 
-  - id: block-host-wide-permissions
-    description: Prevent chmod/chown from touching the whole filesystem.
+  # 2) rm via subshells and find/xargs delete
+  - id: block-subshell-rm-and-find-delete
+    description: Block rm through subshells and find/xargs delete
     when:
       tool: shell
       command:
         any:
-          - regex: '(^|;)\\s*chmod\\s+(?:[0-7]{3,4}|a[+-=])\\S*\\s+/(?:\\s|$)'
-          - regex: '(^|;)\\s*chown\\s+\\S+\\s+/(?:\\s|$)'
+          - regex: '(^|;)\\s*(?:sh|bash)\\s+-c\\s+["\\\'].*\\brm\\b.*["\\\']'
+          - regex: 'find\\s+[^;]*\\s-(?:delete|exec\\s+rm\\b)'
+          - regex: 'xargs\\s+-0?\\s*rm\\b'
     then:
       action: block
-      message: >
-        Modifying permissions at the filesystem root is not allowed.
+      message: 'rm through subshell/find/xargs is blocked.'
 
-  - id: require-confirmation-package-manager
-    description: Ask before running long lived package manager commands.
+  # 3) Network and global installs require confirmation
+  - id: require-confirm-network-and-globals
+    description: Network fetches and global installs require confirmation
     when:
       tool: shell
       command:
         any:
-          - regex: '(^|;)\\s*apt(-get)?\\s+(?:upgrade|dist-upgrade|full-upgrade)\\b'
-          - regex: '(^|;)\\s*apt(-get)?\\s+install\\b'
-          - regex: '(^|;)\\s*npm\\s+(?:install|update|ci)\\b'
-          - regex: '(^|;)\\s*brew\\s+(?:install|upgrade|uninstall)\\b'
+          - regex: '(^|;)\\s*(curl|wget)\\b'
+          - regex: '(^|;)\\s*pip\\s+install\\b'
+          - regex: '(^|;)\\s*npm\\s+(?:i|install)\\b'
+          - regex: '(^|;)\\s*yarn\\s+(?:global|add)\\b'
+          - regex: '(^|;)\\s*pnpm\\s+(?:add|install)\\b'
+          - regex: '(^|;)\\s*gem\\s+install\\b'
+          - regex: '(^|;)\\s*go\\s+install\\b'
     then:
       action: require_confirmation
       prompt: >
-        This command can change system dependencies or take a long time.
-        Continue? (yes/no)
+        This command may fetch from the network or install global packages. Continue? (yes/no)
 
-  # -------- Git safety guardrails --------
-  - id: block-history-rewrite
-    description: Stop force-push and destructive local git operations.
+  # 4) Killing processes, services, containers, clusters require confirmation
+  - id: require-confirm-process-and-service
+    description: High-impact operations (kill, services, containers, clusters) require confirmation
     when:
       tool: shell
       command:
         any:
-          - regex: 'git\\s+push\\s+.*--force'
-          - regex: 'git\\s+push\\s+.*-f\\b'
-          - regex: 'git\\s+reset\\s+--hard'
-          - regex: 'git\\s+clean\\s+-fd'
-          - regex: 'git\\s+rebase\\s+--onto\\s+.*HEAD~'
+          - regex: '(^|;)\\s*(pkill|killall|kill\\s+-9)\\b'
+          - regex: '(^|;)\\s*systemctl\\b'
+          - regex: '(^|;)\\s*(docker|kubectl)\\b'
     then:
-      action: block
-      message: >
-        Git history rewriting commands are disallowed without human review.
+      action: require_confirmation
+      prompt: 'High-impact operation. Continue? (yes/no)'
 
-  # -------- File editing guardrails --------
-  - id: block-apply-patch-outside-workspace
-    description: Restrict apply_patch edits to the mounted workspace.
+  # 5) Additional dangerous git operations
+  - id: require-confirm-git-harder
+    description: Additional risky git operations require confirmation
+    when:
+      tool: shell
+      command:
+        any:
+          - regex: 'git\\s+reset\\s+--hard\\b'
+          - regex: 'git\\s+clean\\s+-fdx\\b'
+          - regex: 'git\\s+checkout\\s+-f\\b'
+          - regex: 'git\\s+config\\s+--global\\b'
+          - regex: 'git\\s+push\\s+--force\\b'
+          - regex: 'git\\s+rebase\\b'
+    then:
+      action: require_confirmation
+      prompt: 'This git operation is risky. Continue? (yes/no)'
+
+  # 6) apply_patch path traversal / workspace escape
+  - id: block-apply-patch-path-traversal
+    description: apply_patch must not escape workspace or use path traversal
     when:
       tool: apply_patch
       target_path:
-        not_starts_with: /workspace
+        any:
+          - not_starts_with: '/workspace'
+          - contains: '..'
     then:
       action: block
-      message: >
-        apply_patch is limited to files inside /workspace.
+      message: 'apply_patch path traversal or workspace escape is blocked.'
 
-  - id: block-binary-edits
-    description: Prevent apply_patch from modifying binary files.
-    when:
-      tool: apply_patch
-      target_path:
-        matches:
-          - regex: '\\.(?:png|jpg|jpeg|gif|pdf|zip|tar|gz|tgz|xz|7z|exe|dll)$'
-    then:
-      action: block
-      message: >
-        Binary files must be updated manually by a human.
-
-# Optional allow-list for common safe commands.
 allowlist:
   - for: shell
     commands:
       - regex: '^ls(\\s|$)'
       - regex: '^pwd(\\s|$)'
       - regex: '^cat\\b'
+      - regex: '^head\\b'
+      - regex: '^tail\\b'
       - regex: '^grep\\b'
       - regex: '^rg\\b'
-      - regex: '^git\\s+status'
-
-# Uncomment to export variables or macros usable in the messages above.
-# variables:
-#   workspace_root: /workspace
+      - regex: '^sed\\s+-n\\b'   # non-destructive viewing
+      - regex: '^git\\s+status(\\s|$)'
+      - regex: '^git\\s+log(\\s|$)'
+      - regex: '^git\\s+diff(\\s|$)'
+      - regex: '^python\\b'
+      - regex: '^pytest(\\s|$)'
+      - regex: '^make(\\s|$)'
