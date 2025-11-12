@@ -1,11 +1,26 @@
-# Guardrails configuration (reviewed)
+# Guardrails configuration (reviewed + subshell prohibition)
 # Default stance: require confirmation unless explicitly allowlisted.
 defaults:
-  decision: allow
+  decision: require_confirmation
   blocked_message: >
     Guardrail ${rule_id} blocked: ${command}
 
 rules:
+  # -- New: 0) Disallow subshell invocation (bash -c / sh -c / eval / backticks)
+  - id: block-subshell-invocation
+    description: Block subshell execution via bash -c, sh -c, eval, and backticks (including with &&, ||, ;)
+    when:
+      tool: shell
+      command:
+        any:
+          - regex: '(^|;|&&|\\|\\|)\\s*bash\\s+-c\\s+["\\\']'
+          - regex: '(^|;|&&|\\|\\|)\\s*sh\\s+-c\\s+["\\\']'
+          - regex: '\\beval\\s+'
+          - regex: '`[^`]+`'
+    then:
+      action: block
+      message: 'Subshell invocation (bash -c / sh -c / eval / backticks) is forbidden. Break complex commands into plan steps or provide argv-form commands.'
+
   # 1) Dangerous privilege/disk operations
   - id: block-priv-escalation-and-disk
     description: Block sudo, dd, mkfs, fork-bomb, and destructive redirections
