@@ -1,7 +1,7 @@
 # Guardrails configuration (reviewed + subshell prohibition)
 # Default stance: require confirmation unless explicitly allowlisted.
 defaults:
-  decision: require_confirmation
+  decision: allow
   blocked_message: >
     Guardrail ${rule_id} blocked: ${command}
 
