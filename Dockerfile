@@ -3,6 +3,7 @@ FROM ubuntu:22.04
 ARG USER_NAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
+ARG CODEX_INSTALL_CMD="npm install -g @openai/codex"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     NPM_CONFIG_PREFIX="/home/${USER_NAME}/.npm-global" \
@@ -35,5 +36,11 @@ COPY scripts/install-codex.sh /usr/local/bin/install-codex
 RUN chmod +x /usr/local/bin/install-codex
 
 USER ${USER_NAME}
+
+RUN if [ -n "${CODEX_INSTALL_CMD}" ] || [ -f "/workspace/bin/codex" ]; then \
+      CODEX_INSTALL_CMD="${CODEX_INSTALL_CMD}" install-codex; \
+    else \
+      echo "[install-codex] Skipped during build (no CODEX_INSTALL_CMD or /workspace/bin/codex)."; \
+    fi
 
 CMD ["/bin/bash"]

@@ -11,7 +11,7 @@ macOS 上でプロジェクトディレクトリを編集しながら、コン�
 ## クイックスタート
 1. `.env.example` を `.env` にコピーして内容を編集します。
    - `HOST_UID` / `HOST_GID`: macOS で `id -u` / `id -g` を実行した値。
-   - `CODEX_INSTALL_CMD`: コンテナ内で Codex をインストールするコマンド（既定値は `npm install -g @openai/codex`）。
+   - `CODEX_INSTALL_CMD`: コンテナ内で Codex をインストールするコマンド（既定値は `npm install -g @openai/codex`）。イメージのビルド時に自動で実行されるため、CLI のインストール方法をここで決めてください。
    - ホストに保存されている `~/.codex/auth.json` をそのまま使う場合は、絶対パスを `CODEX_AUTH_FILE` に設定します。
 2. イメージをビルドしてコンテナを起動します。
    ```bash
@@ -21,15 +21,12 @@ macOS 上でプロジェクトディレクトリを編集しながら、コン�
    ```bash
    docker compose exec codex bash
    ```
-4. インストール用ヘルパーを実行します。
-   ```bash
-   install-codex
-   ```
 
 ## Codex のインストール方法
-`install-codex` は `CODEX_INSTALL_CMD` に指定したコマンドをそのまま実行します。  
+`install-codex` は `CODEX_INSTALL_CMD` に指定したコマンドをそのまま実行します（`docker compose build` 時に自動実行されます）。  
 デフォルトでは `npm install -g @openai/codex` を実行します。コンテナには Node.js 18 / npm 9 系があらかじめ入っており、グローバルインストールはユーザー権限のまま実行できます。
 独自バイナリを使いたい場合は、ホストの `./bin/codex` に配置すると `/usr/local/bin/codex` にコピーされます。
+`CODEX_INSTALL_CMD` を空にして `./bin/codex` も用意していない場合は、ビルド時の自動実行はスキップされるため、コンテナ内で `install-codex` を手動実行してください。
 
 ## トークンによるログイン
 - `docker compose up` でコンテナを起動すると、トークンが `codex` コマンドから参照できる環境変数として渡されます。

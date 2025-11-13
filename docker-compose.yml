@@ -6,6 +6,7 @@ services:
         USER_UID: ${HOST_UID:-1000}
         USER_GID: ${HOST_GID:-1000}
         USER_NAME: dev
+        CODEX_INSTALL_CMD: ${CODEX_INSTALL_CMD:-npm install -g @openai/codex}
     working_dir: /workspace
     volumes:
       - ${CODEX_WORKSPACE_DIR:-.}:/workspace
