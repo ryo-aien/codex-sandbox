@@ -8,7 +8,7 @@ services:
         USER_NAME: dev
     working_dir: /workspace
     volumes:
-      - .:/workspace
+      - ${CODEX_WORKSPACE_DIR:-.}:/workspace
       - ${CODEX_AUTH_FILE}:/home/dev/.codex/auth.json:ro
     environment:
       CODEX_INSTALL_CMD: ${CODEX_INSTALL_CMD:-}
