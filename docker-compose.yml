@@ -11,7 +11,7 @@ services:
     volumes:
       - ${CODEX_WORKSPACE_DIR:-.}:/workspace
       - ${CODEX_AUTH_FILE}:/home/dev/.codex/auth.json:ro
-      - ./PLANS.md:/workspace/PLANS.md
+      - ./.agent/PLANS.md:/workspace/.agent/PLANS.md
       - ./AGENTS.md:/workspace/AGENTS.md
       - ./guardrails/guardrails.yaml:/workspace/guardrails/guardrails.yaml
     environment:
