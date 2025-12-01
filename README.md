@@ -2,7 +2,7 @@
 
 macOS 上でプロジェクトディレクトリを編集しながら、コンテナ内で Codex を動かすための最小構成です。
 
-![ホスト構成図](image/ホスト構成図.png)
+![ホスト構成図](image/host.png)
 
 ## 必要条件
 - Docker Desktop（または Docker Engine + docker compose プラグイン）
@@ -15,7 +15,7 @@ macOS 上でプロジェクトディレクトリを編集しながら、コン�
    - ホストに保存されている `~/.codex/auth.json` をそのまま使う場合は、絶対パスを `CODEX_AUTH_FILE` に設定します。
 2. イメージをビルドしてコンテナを起動します。
    ```bash
-   docker compose up --build -d
+   docker compose build --no-cache && docker compose up -d
    ```
 3. コンテナに入ります。
    ```bash
