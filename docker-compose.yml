@@ -10,7 +10,7 @@ services:
     working_dir: /workspace
     volumes:
       - ${CODEX_WORKSPACE_DIR:-.}:/workspace
-      - ${CODEX_AUTH_FILE}:/home/dev/.codex/auth.json:ro
+      - ${HOME}/.codex/auth.json:/home/dev/.codex/auth.json:ro
       - ./.agent/PLANS.md:/workspace/.agent/PLANS.md
       - ./AGENTS.md:/workspace/AGENTS.md
       - ./guardrails/guardrails.yaml:/workspace/guardrails/guardrails.yaml

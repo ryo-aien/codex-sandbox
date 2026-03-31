@@ -18,12 +18,14 @@ RUN apt-get update \
         gnupg \
         python3 \
         python3-pip \
+        sudo \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid "${USER_GID}" "${USER_NAME}" \
     && useradd --uid "${USER_UID}" --gid "${USER_GID}" -m "${USER_NAME}" \
+    && mkdir -p /etc/sudoers.d \
     && echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER_NAME} \
     && chmod 0440 /etc/sudoers.d/${USER_NAME} \
     && mkdir -p "/home/${USER_NAME}/.npm-global" "/home/${USER_NAME}/.codex" \
